@@ -1,8 +1,26 @@
-import { useWeb3 } from "../providers/web3-provider"
+import { connect, availableExtensions$ } from "@/api"
 import { Button } from "./ui/button"
+import React from "react"
+import { Subscribe, useStateObservable } from "@react-rxjs/core"
 
-export const Connect: React.FC = () => {
-  const { connect } = useWeb3()
+const ConnectOptions: React.FC = () => {
+  const availableExtensions = useStateObservable(availableExtensions$)
 
-  return <Button onClick={() => connect()}>Connect to DApp</Button>
+  return availableExtensions.length ? (
+    <ul>
+      {availableExtensions.map((name) => (
+        <li key={name}>
+          <Button onClick={() => connect(name)}>Connect using {name}</Button>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <div>No Web3 extensions detected.</div>
+  )
 }
+
+export const Connect: React.FC = () => (
+  <Subscribe fallback={<div>Looking for available extensions...</div>}>
+    <ConnectOptions />
+  </Subscribe>
+)

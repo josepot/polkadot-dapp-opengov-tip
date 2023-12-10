@@ -1,3 +1,4 @@
+import { useStateObservable } from "@react-rxjs/core"
 import { AccountProfile } from "./components/AccountProfile"
 import { AccountSelect } from "./components/AccountSelect"
 import { Connect } from "./components/Connect"
@@ -5,11 +6,11 @@ import { ConnectionIndicator } from "./components/ConnectionIndicator"
 import { ProposeTip } from "./components/ProposeTip"
 import { ThemeToggle } from "./components/ThemeToggle"
 import { RequireAccount } from "./components/helpers/RequireAccount"
-import { RequireApi } from "./components/helpers/RequireApi"
-import { useWeb3 } from "./providers/web3-provider"
+import { currentAccount$, isConnected$ } from "./api"
 
 function App() {
-  const { isConnected, currentAccount } = useWeb3()
+  const currentAccount = useStateObservable(currentAccount$)
+  const isConnected = useStateObservable(isConnected$)
 
   return (
     <div className="relative flex min-h-screen flex-col">
@@ -28,29 +29,26 @@ function App() {
       <div className="flex-1">
         <div className="m flex-1 items-start">
           <main className="relative col-auto mx-auto grid w-full py-6 sm:py-2">
-            <RequireApi fallback={null}>
-              <RequireAccount
-                fallback={
-                  <div className="relative flex h-96 w-auto flex-row items-center justify-center">
-                    <div className="relative flex w-auto flex-col items-center justify-center gap-4 space-y-2">
-                      <h3 className="text-lg tracking-tight">
-                        Please connect and select an Account first to use this
-                        DApp.
-                      </h3>
-                      <div className="flex">
-                        {!isConnected ? <Connect /> : <AccountSelect />}
-                      </div>
+            <RequireAccount
+              fallback={
+                <div className="relative flex h-96 w-auto flex-row items-center justify-center">
+                  <div className="relative flex w-auto flex-col items-center justify-center gap-4 space-y-2">
+                    <h3 className="text-lg tracking-tight">
+                      Please connect and select an Account first to use this
+                      DApp.
+                    </h3>
+                    <div className="flex">
+                      {!isConnected ? <Connect /> : <AccountSelect />}
                     </div>
                   </div>
-                }
-              >
-                <div className="grid items-center justify-center gap-6 md:p-6 ">
-                  <AccountProfile />
-
-                  <ProposeTip />
                 </div>
-              </RequireAccount>
-            </RequireApi>
+              }
+            >
+              <div className="grid items-center justify-center gap-6 md:p-6 ">
+                <AccountProfile />
+                <ProposeTip />
+              </div>
+            </RequireAccount>
           </main>
         </div>
       </div>

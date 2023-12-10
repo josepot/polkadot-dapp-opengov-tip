@@ -1,5 +1,3 @@
-import { useApi } from "../providers/api-provider"
-import { useWeb3 } from "../providers/web3-provider"
 import { Button } from "./ui/button"
 import { Form, FormControl, FormField, FormItem, FormMessage } from "./ui/form"
 import { Input } from "./ui/input"
@@ -8,79 +6,37 @@ import * as z from "zod"
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowDownIcon, Pencil1Icon } from "@radix-ui/react-icons"
-import { useCallback, useEffect } from "react"
-import { SubmitHandler, useForm } from "react-hook-form"
+import { useEffect } from "react"
+import { useForm } from "react-hook-form"
 import { cn } from "../lib/utils"
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group"
 import { formatBalance } from "../lib/formatBalance"
-
-const ORIGIN_SMALL_TIPPER = new Uint8Array([22, 8])
+import {
+  DECIMALS,
+  SYMBOL,
+  currentAccount$,
+  formatTokenAmount,
+  isAccountValid,
+  onSubmitReferenda,
+} from "@/api"
+import { useStateObservable } from "@react-rxjs/core"
 
 const formSchema = z.object({
   sender: z.string(),
-  receiver: z.string().min(48).max(48),
-  amount: z.string().refine((v) => BigInt(v) * BigInt(1e12)),
+  receiver: z.string().refine(isAccountValid),
+  amount: z.bigint(),
 })
 
 export const ProposeTip: React.FC = () => {
-  const { currentAccount, injector } = useWeb3()
-  const { api, decimals, symbol } = useApi()
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {},
   })
 
+  const currentAccount = useStateObservable(currentAccount$)
   useEffect(() => {
-    if (currentAccount?.address) {
-      form.setValue("sender", currentAccount?.address)
-    }
-  }, [currentAccount?.address, form])
-
-  const onSubmit: SubmitHandler<z.infer<typeof formSchema>> = useCallback(
-    async ({ receiver, amount }) => {
-      const transferCall = api.tx.balances.transferKeepAlive(receiver, amount)
-
-      const referenda = api.tx.referenda.submit(
-        // ORIGIN_SMALL_TIPPER,
-        // { system: "Root" },
-        ORIGIN_SMALL_TIPPER,
-        { Inline: transferCall.toHex() },
-        { After: 10 },
-      )
-
-      console.log("referenda", referenda.toHex())
-
-      return new Promise<void>((resolve, reject) => {
-        referenda
-          .signAndSend(
-            currentAccount!.address,
-            {
-              signer: injector?.signer,
-            },
-            (result) => {
-              console.log("result", result)
-              result.events.forEach((event) => {
-                console.log("event", event.toHuman())
-
-                if (api.events.system.ExtrinsicSuccess.is(event.event)) {
-                  console.log("ExtrinsicSuccess")
-                  resolve()
-                }
-              })
-            },
-          )
-          .catch(reject)
-      })
-    },
-    [api, currentAccount, injector],
-  )
-
-  console.log({
-    loading: form.formState.isLoading,
-    valid: form.formState.isValid,
-    submitting: form.formState.isSubmitting,
-    formState: form.formState,
-  })
+    form.setValue("sender", currentAccount?.address ?? "")
+  }, [form, currentAccount])
 
   return (
     <div className="relative flex w-auto flex-col space-y-2 rounded-md border p-4 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:p-6 lg:p-6">
@@ -96,8 +52,9 @@ export const ProposeTip: React.FC = () => {
       <Form {...form}>
         <form
           // TODO type error of react-hook-forms?
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={form.handleSubmit(({ sender, receiver, amount }) =>
+            onSubmitReferenda(sender, receiver, amount),
+          )}
           className="flex flex-col gap-4"
         >
           <FormField
@@ -112,20 +69,21 @@ export const ProposeTip: React.FC = () => {
                   <FormControl>
                     <ToggleGroup
                       type="single"
-                      onValueChange={field.onChange}
-                      // defaultValue={field.value}
+                      onValueChange={(x) => {
+                        field.onChange(BigInt(x))
+                      }}
                       className={cn("rounded-md border p-1 font-mono", {
                         "border-red-200": fieldState.error,
                       })}
                     >
-                      {[50, 150, 250]
-                        .map((v) => v * 10 ** decimals)
+                      {[50n, 150n, 250n]
+                        .map((v) => v * 10n ** BigInt(DECIMALS))
                         .map((v) => (
                           <ToggleGroupItem
                             key={v.toString()}
                             value={v.toString()}
                           >
-                            {formatBalance(BigInt(v), { decimals })}
+                            {formatTokenAmount(v)}
                           </ToggleGroupItem>
                         ))}
                     </ToggleGroup>
@@ -134,7 +92,7 @@ export const ProposeTip: React.FC = () => {
                     variant="ghost"
                     className="pointer-events-none px-3 font-mono shadow-none"
                   >
-                    {symbol}
+                    {SYMBOL}
                   </Button>
                 </div>
               </FormItem>
@@ -176,8 +134,8 @@ export const ProposeTip: React.FC = () => {
               <div className="relative pl-2 text-right font-mono text-sm italic">
                 {form.watch("amount") ? (
                   formatBalance(BigInt(form.watch("amount")), {
-                    symbol,
-                    decimals,
+                    symbol: SYMBOL,
+                    decimals: DECIMALS,
                   })
                 ) : (
                   <div className="h-5" />
@@ -199,7 +157,7 @@ export const ProposeTip: React.FC = () => {
 
             <div className="flex flex-col items-end justify-end">
               <div className="relative pl-2 text-right font-mono text-sm italic">
-                {api?.consts
+                {/*TODO: api?.consts
                   ? formatBalance(
                       api.consts.referenda.submissionDeposit.toBigInt(),
                       {
@@ -207,7 +165,7 @@ export const ProposeTip: React.FC = () => {
                         decimals,
                       },
                     )
-                  : null}
+                  : null*/}
               </div>
               <div className="relative flex w-1/2 justify-end border-t border-muted-foreground text-xs uppercase text-muted-foreground">
                 Required Deposit
@@ -216,7 +174,7 @@ export const ProposeTip: React.FC = () => {
 
             <div>
               <div className="relative pl-2 text-right font-mono text-sm italic">
-                {currentAccount?.meta.name ?? currentAccount?.address ?? (
+                {currentAccount?.displayName ?? currentAccount?.address ?? (
                   <div className="h-5" />
                 )}
               </div>

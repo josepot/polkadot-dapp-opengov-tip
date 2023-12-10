@@ -1,5 +1,3 @@
-import { useWeb3 } from "../providers/web3-provider"
-
 import {
   Select,
   SelectContent,
@@ -11,21 +9,24 @@ import {
 } from "@/components/ui/select"
 import { LinkBreak2Icon } from "@radix-ui/react-icons"
 import { Button } from "./ui/button"
+import { useStateObservable } from "@react-rxjs/core"
+import { accounts$, currentAccount$, connect, onUserSelectAccount } from "@/api"
 
 export const AccountSelect: React.FC = () => {
-  const { accounts, selectAccount, disconnect, currentAccount } = useWeb3()
+  const currentAccount = useStateObservable(currentAccount$)
+  const availableAccounts = useStateObservable(accounts$)
 
   return (
-    <Select onValueChange={selectAccount} value={currentAccount?.address}>
+    <Select onValueChange={onUserSelectAccount} value={currentAccount?.address}>
       <SelectTrigger className="w-[180px]">
         <SelectValue placeholder="Select an Account" />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
           <SelectLabel>Accounts</SelectLabel>
-          {accounts.map((account) => (
+          {availableAccounts.map((account) => (
             <SelectItem key={account.address} value={account.address}>
-              {account.meta.name}
+              {account.displayName}
             </SelectItem>
           ))}
         </SelectGroup>
@@ -34,8 +35,8 @@ export const AccountSelect: React.FC = () => {
 
         <div>
           <Button
+            onClick={() => connect(null)}
             size={"icon"}
-            onClick={disconnect}
             className="w-full gap-2"
             variant={"ghost"}
           >

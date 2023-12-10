@@ -1,4 +1,5 @@
-import { useWeb3 } from "../../providers/web3-provider"
+import { useStateObservable } from "@react-rxjs/core"
+import { currentAccount$ } from "@/api"
 
 interface RequireAccountProps {
   fallback: React.ReactNode
@@ -7,10 +8,4 @@ interface RequireAccountProps {
 export const RequireAccount: React.FC<RequireAccountProps> = ({
   fallback,
   children,
-}) => {
-  const { currentAccount } = useWeb3()
-  if (!currentAccount) {
-    return <>{fallback}</>
-  }
-  return <>{children}</>
-}
+}) => (useStateObservable(currentAccount$) ? children : fallback)
